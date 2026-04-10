@@ -161,7 +161,8 @@ const EFFECTS_CATEGORIES = {
   // DOM Refs
   const canvas = document.getElementById('main-canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  let sourceImage = null;
+  let sourceMedia = null;
+  let sourceMediaKind = 'image';
   let requestRef = null;
   let playInterval = null;
 
@@ -178,6 +179,7 @@ const EFFECTS_CATEGORIES = {
   let _dispMapW = 0;
   let _dispMapH = 0;
   let _dispMapName = '';
+  let _dispMapVideo = null;
 
   function extra(key, def) {
     const v = state.extras[key];
@@ -185,6 +187,7 @@ const EFFECTS_CATEGORIES = {
   }
 
   function getSourceImageData(w, h) {
+    if (!sourceMedia) return null;
     if (!_srcCanvas) {
       _srcCanvas = document.createElement('canvas');
       _srcCtx = _srcCanvas.getContext('2d', { willReadFrequently: true });
@@ -193,7 +196,7 @@ const EFFECTS_CATEGORIES = {
       _srcCanvas.width = w;
       _srcCanvas.height = h;
     }
-    _srcCtx.drawImage(sourceImage, 0, 0, w, h);
+    _srcCtx.drawImage(sourceMedia, 0, 0, w, h);
     return _srcCtx.getImageData(0, 0, w, h);
   }
 
@@ -272,7 +275,8 @@ const EFFECTS_CATEGORIES = {
       status.textContent = 'Nessuna mappa caricata.';
       return;
     }
-    status.textContent = `Mappa caricata: ${_dispMapName || 'immagine'} (${_dispMapW}x${_dispMapH})`;
+    const type = _dispMapVideo ? 'video' : 'immagine';
+    status.textContent = `Mappa ${type}: ${_dispMapName || type} (${_dispMapW}x${_dispMapH})`;
   }
 
   function renderDisplacementControls() {
@@ -294,7 +298,14 @@ const EFFECTS_CATEGORIES = {
     };
   }
 
+  function syncDisplacementMapFrame() {
+    if (!_dispMapVideo || !_dispMapCtx || !_dispMapW || !_dispMapH) return;
+    _dispMapCtx.drawImage(_dispMapVideo, 0, 0, _dispMapW, _dispMapH);
+    _dispMapData = _dispMapCtx.getImageData(0, 0, _dispMapW, _dispMapH).data;
+  }
+
   function loadDisplacementMapDataUrl(dataUrl, fileName = '') {
+    _dispMapVideo = null;
     const img = new Image();
     img.onload = () => {
       if (!_dispMapCanvas) {
@@ -314,6 +325,30 @@ const EFFECTS_CATEGORIES = {
       if (!state.liveMode) renderFrame(state.time);
     };
     img.src = dataUrl;
+  }
+
+  function loadDisplacementMapVideoUrl(videoUrl, fileName = '') {
+    _dispMapVideo = document.createElement('video');
+    _dispMapVideo.src = videoUrl;
+    _dispMapVideo.muted = true;
+    _dispMapVideo.loop = true;
+    _dispMapVideo.playsInline = true;
+    _dispMapVideo.autoplay = true;
+    _dispMapVideo.addEventListener('loadedmetadata', () => {
+      if (!_dispMapCanvas) {
+        _dispMapCanvas = document.createElement('canvas');
+        _dispMapCtx = _dispMapCanvas.getContext('2d', { willReadFrequently: true });
+      }
+      _dispMapW = _dispMapVideo.videoWidth;
+      _dispMapH = _dispMapVideo.videoHeight;
+      _dispMapCanvas.width = _dispMapW;
+      _dispMapCanvas.height = _dispMapH;
+      syncDisplacementMapFrame();
+      _dispMapName = fileName || 'custom-map-video';
+      setDisplacementMapStatus();
+      if (!state.liveMode) renderFrame(state.time);
+    });
+    _dispMapVideo.play().catch(() => {});
   }
   
   // --- RENDER ENGINE ---
@@ -346,6 +381,7 @@ const EFFECTS_CATEGORIES = {
     const useCustomDispMap = isDisp && state.displacement.mapEnabled && !!_dispMapData;
     const dispMapBlend = state.displacement.mapBlend / 100;
     const dispMapDir = state.displacement.mapInvert ? -1 : 1;
+    if (useCustomDispMap && _dispMapVideo) syncDisplacementMapFrame();
   
     const maxRadius = (Math.max(width, height) / 2) * (state.params.radius / 100);
     const featherPx = (Math.max(width, height) / 2) * (state.params.feather / 100);
@@ -632,10 +668,11 @@ const EFFECTS_CATEGORIES = {
   }
   
   function renderFrame(t) {
-    if (!sourceImage || !canvas) return;
+    if (!sourceMedia || !canvas) return;
     const w = canvas.width;
     const h = canvas.height;
     const srcData = getSourceImageData(w, h);
+    if (!srcData) return;
     const dstData = applyDistortion(srcData, w, h, t);
     ctx.putImageData(dstData, 0, 0);
     pushRecordedFrame();
@@ -655,6 +692,7 @@ const EFFECTS_CATEGORIES = {
   
   // --- CODE GENERATOR ---
   function updateCodeView() {
+    const sourceLabel = sourceMediaKind === 'video' ? 'Video' : 'Immagine';
     const extraDefs = EFFECT_EXTRA_DEFS[state.selectedEffect];
     const extraSnap = {};
     if (extraDefs) {
@@ -665,6 +703,7 @@ const EFFECTS_CATEGORIES = {
       : '';
     const codeStr = `// Distortion Studio PRO - Engine 50+ FX
   // Effetto Selezionato: ${EFFECTS[state.selectedEffect].name}
+  // Sorgente media: ${sourceLabel}
   // Modificatore SquareSpin: ${state.globalModifiers.squareSpin ? 'ATTIVO' : 'DISATTIVO'}${extraLine}
   
   function applyDistortion(srcData, width, height, t) {
@@ -1012,10 +1051,20 @@ const EFFECTS_CATEGORIES = {
       if (state.activeTab === 'code') updateCodeView();
     });
   
+    function setCanvasReady(w, h) {
+      canvas.width = w;
+      canvas.height = h;
+      state.imageLoaded = true;
+      document.getElementById('empty-state').classList.add('hidden');
+      canvas.classList.replace('opacity-0', 'opacity-100');
+      canvas.classList.add('cursor-crosshair', 'canvas-ready');
+    }
+
     function loadImageDataUrl(dataUrl) {
       const img = new Image();
       img.onload = () => {
-        sourceImage = img;
+        sourceMedia = img;
+        sourceMediaKind = 'image';
         let w = img.width;
         let h = img.height;
         if (w > 800 || h > 800) {
@@ -1023,23 +1072,53 @@ const EFFECTS_CATEGORIES = {
           w *= r;
           h *= r;
         }
-        canvas.width = w;
-        canvas.height = h;
-        state.imageLoaded = true;
-        document.getElementById('empty-state').classList.add('hidden');
-        canvas.classList.replace('opacity-0', 'opacity-100');
-        canvas.classList.add('cursor-crosshair', 'canvas-ready');
+        setCanvasReady(w, h);
         renderFrame(0);
       };
       img.src = dataUrl;
     }
 
+    function loadVideoUrl(videoUrl) {
+      const video = document.createElement('video');
+      video.src = videoUrl;
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.autoplay = true;
+      video.addEventListener('loadedmetadata', () => {
+        sourceMedia = video;
+        sourceMediaKind = 'video';
+        let w = video.videoWidth;
+        let h = video.videoHeight;
+        if (w > 800 || h > 800) {
+          const r = Math.min(800 / w, 800 / h);
+          w = Math.max(2, Math.round(w * r));
+          h = Math.max(2, Math.round(h * r));
+        }
+        setCanvasReady(w, h);
+        renderFrame(0);
+      });
+      video.play().catch(() => {});
+    }
+
+    function loadMainMediaFile(file) {
+      if (!file) return;
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = ev => loadImageDataUrl(ev.target.result);
+        reader.readAsDataURL(file);
+        return;
+      }
+      if (file.type.startsWith('video/')) {
+        const url = URL.createObjectURL(file);
+        loadVideoUrl(url);
+      }
+    }
+
     document.getElementById('upload-image').addEventListener('change', e => {
       const file = e.target.files[0];
-      if (!file || !file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = ev => loadImageDataUrl(ev.target.result);
-      reader.readAsDataURL(file);
+      if (!file || (!file.type.startsWith('image/') && !file.type.startsWith('video/'))) return;
+      loadMainMediaFile(file);
       e.target.value = '';
     });
 
@@ -1047,10 +1126,15 @@ const EFFECTS_CATEGORIES = {
     if (uploadDispMap) {
       uploadDispMap.addEventListener('change', e => {
         const file = e.target.files[0];
-        if (!file || !file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = ev => loadDisplacementMapDataUrl(ev.target.result, file.name);
-        reader.readAsDataURL(file);
+        if (!file || (!file.type.startsWith('image/') && !file.type.startsWith('video/'))) return;
+        if (file.type.startsWith('video/')) {
+          const url = URL.createObjectURL(file);
+          loadDisplacementMapVideoUrl(url, file.name);
+        } else {
+          const reader = new FileReader();
+          reader.onload = ev => loadDisplacementMapDataUrl(ev.target.result, file.name);
+          reader.readAsDataURL(file);
+        }
         e.target.value = '';
       });
     }
@@ -1073,10 +1157,8 @@ const EFFECTS_CATEGORIES = {
       });
       dropZone.addEventListener('drop', ev => {
         const file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
-        if (!file || !file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = e => loadImageDataUrl(e.target.result);
-        reader.readAsDataURL(file);
+        if (!file || (!file.type.startsWith('image/') && !file.type.startsWith('video/'))) return;
+        loadMainMediaFile(file);
       });
     }
   
