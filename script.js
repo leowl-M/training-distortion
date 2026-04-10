@@ -39,6 +39,10 @@ const EFFECTS_CATEGORIES = {
     return null;
   }
 
+  function isDisplacementEffect(effectKey) {
+    return typeof effectKey === 'string' && effectKey.startsWith('disp_');
+  }
+
   /** Parametri extra per effetto (id univoci, usati solo quando l’effetto è attivo). */
   const EFFECT_EXTRA_DEFS = {
     glitch: [
@@ -124,7 +128,10 @@ const EFFECTS_CATEGORIES = {
     activeTab: 'preview',
     selectedEffect: 'disp_glass',
     openEffectCategory: getCategoryKeyByEffect('disp_glass'),
-    params: { intensity: 40, freq: 10, block: 30, speed: 5, centerX: 50, centerY: 50, rgbSplit: 0, radius: 100, feather: 30 },
+    params: {
+      intensity: 40, freq: 10, block: 30, speed: 5, centerX: 50, centerY: 50, rgbSplit: 0, radius: 100, feather: 30,
+      brightness: 100, contrast: 100, saturation: 100, hueShift: 0, grain: 0
+    },
     globalModifiers: { squareSpin: false },
     oscillators: {
       intensity: { active: false, amount: 20, speed: 2 },
@@ -136,7 +143,19 @@ const EFFECTS_CATEGORIES = {
     time: 0,
     playheadIndex: 0,
     isDragging: false,
-    extras: {}
+    extras: {},
+    recording: { active: false, fps: 12, lastCaptureMs: 0, maxFrames: 400 }
+    ,
+    displacement: {
+      force: 100,
+      xScale: 100,
+      yScale: 100,
+      twist: 0,
+      turbulence: 0,
+      mapEnabled: false,
+      mapBlend: 100,
+      mapInvert: false
+    }
   };
   
   // DOM Refs
@@ -153,6 +172,12 @@ const EFFECTS_CATEGORIES = {
   let _dstRh = 0;
   let _exportCanvas = null;
   let _exportCtx = null;
+  let _dispMapCanvas = null;
+  let _dispMapCtx = null;
+  let _dispMapData = null;
+  let _dispMapW = 0;
+  let _dispMapH = 0;
+  let _dispMapName = '';
 
   function extra(key, def) {
     const v = state.extras[key];
@@ -192,6 +217,104 @@ const EFFECTS_CATEGORIES = {
     }
     return { canvas: _exportCanvas, ctx: _exportCtx };
   }
+
+  function clamp255(v) {
+    return Math.max(0, Math.min(255, v));
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s;
+    const l = (max + min) / 2;
+    if (max === min) {
+      h = 0;
+      s = 0;
+    } else {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        default: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return { h, s, l };
+  }
+
+  function hslToRgb(h, s, l) {
+    if (s === 0) {
+      const v = Math.round(l * 255);
+      return [v, v, v];
+    }
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    return [
+      Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+      Math.round(hue2rgb(p, q, h) * 255),
+      Math.round(hue2rgb(p, q, h - 1 / 3) * 255)
+    ];
+  }
+
+  function setDisplacementMapStatus() {
+    const status = document.getElementById('disp-map-status');
+    if (!status) return;
+    if (!_dispMapData || !_dispMapW || !_dispMapH) {
+      status.textContent = 'Nessuna mappa caricata.';
+      return;
+    }
+    status.textContent = `Mappa caricata: ${_dispMapName || 'immagine'} (${_dispMapW}x${_dispMapH})`;
+  }
+
+  function renderDisplacementControls() {
+    const wrap = document.getElementById('displacement-wrap');
+    if (!wrap) return;
+    wrap.classList.toggle('hidden', !isDisplacementEffect(state.selectedEffect));
+    setDisplacementMapStatus();
+  }
+
+  function sampleDisplacementMap(nx, ny) {
+    if (!_dispMapData || !_dispMapW || !_dispMapH) return null;
+    const px = Math.max(0, Math.min(_dispMapW - 1, Math.floor(nx * (_dispMapW - 1))));
+    const py = Math.max(0, Math.min(_dispMapH - 1, Math.floor(ny * (_dispMapH - 1))));
+    const i = (py * _dispMapW + px) * 4;
+    return {
+      r: _dispMapData[i],
+      g: _dispMapData[i + 1],
+      b: _dispMapData[i + 2]
+    };
+  }
+
+  function loadDisplacementMapDataUrl(dataUrl, fileName = '') {
+    const img = new Image();
+    img.onload = () => {
+      if (!_dispMapCanvas) {
+        _dispMapCanvas = document.createElement('canvas');
+        _dispMapCtx = _dispMapCanvas.getContext('2d', { willReadFrequently: true });
+      }
+      _dispMapCanvas.width = img.width;
+      _dispMapCanvas.height = img.height;
+      _dispMapCtx.clearRect(0, 0, img.width, img.height);
+      _dispMapCtx.drawImage(img, 0, 0);
+      const mapData = _dispMapCtx.getImageData(0, 0, img.width, img.height);
+      _dispMapData = mapData.data;
+      _dispMapW = img.width;
+      _dispMapH = img.height;
+      _dispMapName = fileName || 'custom-map';
+      setDisplacementMapStatus();
+      if (!state.liveMode) renderFrame(state.time);
+    };
+    img.src = dataUrl;
+  }
   
   // --- RENDER ENGINE ---
   function applyDistortion(srcData, width, height, t) {
@@ -208,7 +331,21 @@ const EFFECTS_CATEGORIES = {
     const cx = width * (state.params.centerX / 100);
     const cy = height * (state.params.centerY / 100);
     const rgbOff = state.params.rgbSplit;
+    const brightness = state.params.brightness / 100;
+    const contrast = state.params.contrast / 100;
+    const saturation = state.params.saturation / 100;
+    const hueShift = state.params.hueShift / 360;
+    const grainAmt = state.params.grain;
     const hasSquareSpin = state.globalModifiers.squareSpin;
+    const isDisp = isDisplacementEffect(sel);
+    const dispForce = state.displacement.force / 100;
+    const dispXScale = state.displacement.xScale / 100;
+    const dispYScale = state.displacement.yScale / 100;
+    const dispTwistRad = (state.displacement.twist * Math.PI) / 180;
+    const dispMicro = state.displacement.turbulence / 100;
+    const useCustomDispMap = isDisp && state.displacement.mapEnabled && !!_dispMapData;
+    const dispMapBlend = state.displacement.mapBlend / 100;
+    const dispMapDir = state.displacement.mapInvert ? -1 : 1;
   
     const maxRadius = (Math.max(width, height) / 2) * (state.params.radius / 100);
     const featherPx = (Math.max(width, height) / 2) * (state.params.feather / 100);
@@ -366,6 +503,37 @@ const EFFECTS_CATEGORIES = {
           case 'melt': { const meltDrop = Math.sin(x / width * freq * Math.PI * 2) * inten * 100; sy = y - Math.abs(meltDrop) * ((Math.sin(t + x * 0.01) + 1) / 2) * meltF; break; }
           case 'heartbeat': { const pulse = 1 + Math.pow(Math.abs(Math.sin(t * hbPhase)), 12) * inten * 0.3; sx = cx + (x - cx) * pulse; sy = cy + (y - cy) * pulse; break; }
         }
+
+        if (isDisp) {
+          let dx = (sx - x) * dispForce * dispXScale;
+          let dy = (sy - y) * dispForce * dispYScale;
+
+          if (dispTwistRad !== 0) {
+            const rx = dx * Math.cos(dispTwistRad) - dy * Math.sin(dispTwistRad);
+            const ry = dx * Math.sin(dispTwistRad) + dy * Math.cos(dispTwistRad);
+            dx = rx;
+            dy = ry;
+          }
+
+          if (dispMicro > 0) {
+            const micro = (pseudoRandom(x * 0.7 + t * 30, y * 0.7 - t * 20) - 0.5) * 2;
+            dx += micro * 24 * inten * dispMicro;
+            dy += (0.5 - micro) * 24 * inten * dispMicro;
+          }
+
+          if (useCustomDispMap) {
+            const mapPx = sampleDisplacementMap(x / width, y / height);
+            if (mapPx) {
+              const mapDx = ((mapPx.r / 255) - 0.5) * 2 * dispMapDir;
+              const mapDy = ((mapPx.g / 255) - 0.5) * 2 * dispMapDir;
+              dx += mapDx * 120 * inten * dispMapBlend;
+              dy += mapDy * 120 * inten * dispMapBlend;
+            }
+          }
+
+          sx = x + dx;
+          sy = y + dy;
+        }
   
         // --- SQUARE SPIN MODIFIER ---
         if (hasSquareSpin) {
@@ -400,22 +568,67 @@ const EFFECTS_CATEGORIES = {
         const di = (y * width + x) * 4;
         
         // --- RGB SPLIT ---
+        let outR, outG, outB, outA;
         if (rgbOff > 0) {
           const sxR = Math.max(0, Math.min(width - 1, Math.round(sx - rgbOff*inten)));
           const sxB = Math.max(0, Math.min(width - 1, Math.round(sx + rgbOff*inten)));
           const siR = (sy * width + sxR) * 4;
           const siB = (sy * width + sxB) * 4;
           const si = (sy * width + sx) * 4;
-          d[di] = s[siR]; d[di+1] = s[si+1]; d[di+2] = s[siB+2]; d[di+3] = s[si+3];
+          outR = s[siR];
+          outG = s[si + 1];
+          outB = s[siB + 2];
+          outA = s[si + 3];
         } else {
           const si = (sy * width + sx) * 4;
-          d[di] = s[si]; d[di+1] = s[si+1]; d[di+2] = s[si+2]; d[di+3] = s[si+3];
+          outR = s[si];
+          outG = s[si + 1];
+          outB = s[si + 2];
+          outA = s[si + 3];
         }
-        
-        if (sel === 'crt' && y % crtScanN === 0) { d[di] *= 0.8; d[di + 1] *= 0.8; d[di + 2] *= 0.8; }
+
+        outR = ((outR - 128) * contrast + 128) * brightness;
+        outG = ((outG - 128) * contrast + 128) * brightness;
+        outB = ((outB - 128) * contrast + 128) * brightness;
+
+        const hsl = rgbToHsl(clamp255(outR), clamp255(outG), clamp255(outB));
+        let newHue = hsl.h + hueShift;
+        if (newHue > 1) newHue -= 1;
+        if (newHue < 0) newHue += 1;
+        const newSat = Math.max(0, Math.min(1, hsl.s * saturation));
+        const [satR, satG, satB] = hslToRgb(newHue, newSat, hsl.l);
+        outR = satR;
+        outG = satG;
+        outB = satB;
+
+        if (grainAmt > 0) {
+          const grainNoise = (pseudoRandom(x + t * 60, y - t * 37) - 0.5) * 2 * grainAmt;
+          outR += grainNoise;
+          outG += grainNoise;
+          outB += grainNoise;
+        }
+
+        if (sel === 'crt' && y % crtScanN === 0) { outR *= 0.8; outG *= 0.8; outB *= 0.8; }
+        d[di] = clamp255(outR);
+        d[di + 1] = clamp255(outG);
+        d[di + 2] = clamp255(outB);
+        d[di + 3] = outA;
       }
     }
     return dstData;
+  }
+
+  function pushRecordedFrame(force = false) {
+    if (!state.recording.active || !state.imageLoaded) return;
+    const now = performance.now();
+    const minDelta = 1000 / Math.max(1, state.recording.fps);
+    if (!force && now - state.recording.lastCaptureMs < minDelta) return;
+    state.recording.lastCaptureMs = now;
+    state.frames.push(canvas.toDataURL('image/png'));
+    if (state.frames.length > state.recording.maxFrames) {
+      state.frames = state.frames.slice(state.frames.length - state.recording.maxFrames);
+    }
+    renderTimeline();
   }
   
   function renderFrame(t) {
@@ -425,6 +638,7 @@ const EFFECTS_CATEGORIES = {
     const srcData = getSourceImageData(w, h);
     const dstData = applyDistortion(srcData, w, h, t);
     ctx.putImageData(dstData, 0, 0);
+    pushRecordedFrame();
   }
   
   // --- LOOP ---
@@ -633,6 +847,7 @@ const EFFECTS_CATEGORIES = {
       });
     });
     renderEffectExtras();
+    renderDisplacementControls();
   }
 
   // --- SETUP UI BINDINGS ---
@@ -670,16 +885,53 @@ const EFFECTS_CATEGORIES = {
     }
 
     // Event Listeners Base Params
-    ['intensity', 'freq', 'block', 'speed', 'centerX', 'centerY', 'radius', 'feather', 'rgbSplit'].forEach(id => {
+    ['intensity', 'freq', 'block', 'speed', 'centerX', 'centerY', 'radius', 'feather', 'rgbSplit', 'brightness', 'contrast', 'saturation', 'hueShift', 'grain'].forEach(id => {
       document.getElementById(id).addEventListener('input', e => {
         state.params[id] = parseFloat(e.target.value);
         if(document.getElementById(`val-${id}`)) {
-          document.getElementById(`val-${id}`).innerText = id === 'rgbSplit' ? e.target.value + 'px' : (['radius', 'feather'].includes(id) ? e.target.value + '%' : e.target.value);
+          const withUnit = id === 'rgbSplit'
+            ? `${e.target.value}px`
+            : ['radius', 'feather', 'brightness', 'contrast', 'saturation', 'grain'].includes(id)
+              ? `${e.target.value}%`
+              : id === 'hueShift'
+                ? `${e.target.value}deg`
+                : e.target.value;
+          document.getElementById(`val-${id}`).innerText = withUnit;
         }
         if(!state.liveMode) renderFrame(state.time);
         if(state.activeTab === 'code') updateCodeView();
       });
     });
+
+    const dispSliders = ['force', 'xScale', 'yScale', 'twist', 'turbulence', 'mapBlend'];
+    dispSliders.forEach(key => {
+      const id = `disp-${key.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`)}`;
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', e => {
+        state.displacement[key] = parseFloat(e.target.value);
+        const out = document.getElementById(`val-${id}`);
+        if (out) {
+          out.textContent = key === 'twist' ? `${e.target.value}deg` : `${e.target.value}%`;
+        }
+        if (!state.liveMode) renderFrame(state.time);
+      });
+    });
+
+    const dispMapEnable = document.getElementById('disp-map-enable');
+    const dispMapInvert = document.getElementById('disp-map-invert');
+    if (dispMapEnable) {
+      dispMapEnable.addEventListener('change', e => {
+        state.displacement.mapEnabled = e.target.checked;
+        if (!state.liveMode) renderFrame(state.time);
+      });
+    }
+    if (dispMapInvert) {
+      dispMapInvert.addEventListener('change', e => {
+        state.displacement.mapInvert = e.target.checked;
+        if (!state.liveMode) renderFrame(state.time);
+      });
+    }
   
     // LFO Checkboxes & Sliders
     ['int', 'freq'].forEach(p => {
@@ -715,16 +967,47 @@ const EFFECTS_CATEGORIES = {
   
     // Reset Button
     document.getElementById('btn-reset').addEventListener('click', () => {
-      state.params = { intensity: 40, freq: 10, block: 30, speed: 5, centerX: 50, centerY: 50, rgbSplit: 0, radius: 100, feather: 30 };
+      state.params = {
+        intensity: 40, freq: 10, block: 30, speed: 5, centerX: 50, centerY: 50, rgbSplit: 0, radius: 100, feather: 30,
+        brightness: 100, contrast: 100, saturation: 100, hueShift: 0, grain: 0
+      };
       Object.keys(state.params).forEach(k => {
         const input = document.getElementById(k);
         if(input) input.value = state.params[k];
         const valLabel = document.getElementById(`val-${k}`);
-        if(valLabel) valLabel.innerText = k === 'rgbSplit' ? state.params[k]+'px' : (['radius', 'feather'].includes(k) ? state.params[k]+'%' : state.params[k]);
+        if (valLabel) {
+          valLabel.innerText = k === 'rgbSplit'
+            ? `${state.params[k]}px`
+            : ['radius', 'feather', 'brightness', 'contrast', 'saturation', 'grain'].includes(k)
+              ? `${state.params[k]}%`
+              : k === 'hueShift'
+                ? `${state.params[k]}deg`
+                : state.params[k];
+        }
       });
       const ed = EFFECT_EXTRA_DEFS[state.selectedEffect];
       if (ed) ed.forEach(def => { state.extras[def.id] = def.default; });
+      state.displacement = {
+        force: 100,
+        xScale: 100,
+        yScale: 100,
+        twist: 0,
+        turbulence: 0,
+        mapEnabled: false,
+        mapBlend: 100,
+        mapInvert: false
+      };
+      ['force', 'xScale', 'yScale', 'twist', 'turbulence', 'mapBlend'].forEach(key => {
+        const id = `disp-${key.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`)}`;
+        const input = document.getElementById(id);
+        const valEl = document.getElementById(`val-${id}`);
+        if (input) input.value = String(state.displacement[key]);
+        if (valEl) valEl.textContent = key === 'twist' ? `${state.displacement[key]}deg` : `${state.displacement[key]}%`;
+      });
+      if (dispMapEnable) dispMapEnable.checked = false;
+      if (dispMapInvert) dispMapInvert.checked = false;
       renderEffectExtras();
+      renderDisplacementControls();
       if (!state.liveMode) renderFrame(state.time);
       if (state.activeTab === 'code') updateCodeView();
     });
@@ -759,6 +1042,18 @@ const EFFECTS_CATEGORIES = {
       reader.readAsDataURL(file);
       e.target.value = '';
     });
+
+    const uploadDispMap = document.getElementById('upload-disp-map');
+    if (uploadDispMap) {
+      uploadDispMap.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = ev => loadDisplacementMapDataUrl(ev.target.result, file.name);
+        reader.readAsDataURL(file);
+        e.target.value = '';
+      });
+    }
 
     const dropZone = document.getElementById('drop-zone');
     if (dropZone) {
@@ -832,6 +1127,27 @@ const EFFECTS_CATEGORIES = {
       state.frames.push(canvas.toDataURL('image/png'));
       renderTimeline();
     });
+
+    const recordBtn = document.getElementById('btn-record');
+    const recordFps = document.getElementById('record-fps');
+    const recordFpsLabel = document.getElementById('val-record-fps');
+    if (recordFps) {
+      recordFps.addEventListener('input', e => {
+        state.recording.fps = parseInt(e.target.value, 10) || 12;
+        if (recordFpsLabel) recordFpsLabel.textContent = String(state.recording.fps);
+      });
+    }
+    if (recordBtn) {
+      recordBtn.addEventListener('click', () => {
+        state.recording.active = !state.recording.active;
+        recordBtn.setAttribute('aria-pressed', state.recording.active ? 'true' : 'false');
+        recordBtn.classList.toggle('is-recording', state.recording.active);
+        if (state.recording.active) {
+          state.recording.lastCaptureMs = 0;
+          pushRecordedFrame(true);
+        }
+      });
+    }
   
     document.getElementById('btn-clear-frames').addEventListener('click', () => {
       state.frames = []; renderTimeline();
