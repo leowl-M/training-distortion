@@ -171,6 +171,115 @@
             <input type="range" id="rgbSplit" min="0" max="50" value="0" class="w-full">
           </div>
 
+          <div id="displacement-wrap" class="hidden pt-3 mt-2 border-t border-neutral-800">
+            <span class="text-xs font-medium text-neutral-400 flex items-center gap-2 mb-2">
+              <i data-lucide="mountain" class="w-3.5 h-3.5"></i> Controlli displacement
+            </span>
+            <div class="flex flex-col gap-3">
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="disp-force" class="block text-[10px] text-neutral-500">Forza displacement</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-disp-force">100%</span>
+                </div>
+                <input type="range" id="disp-force" min="0" max="250" value="100" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="disp-x-scale" class="block text-[10px] text-neutral-500">Bilanciamento asse X</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-disp-x-scale">100%</span>
+                </div>
+                <input type="range" id="disp-x-scale" min="0" max="250" value="100" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="disp-y-scale" class="block text-[10px] text-neutral-500">Bilanciamento asse Y</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-disp-y-scale">100%</span>
+                </div>
+                <input type="range" id="disp-y-scale" min="0" max="250" value="100" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="disp-twist" class="block text-[10px] text-neutral-500">Rotazione flusso</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-disp-twist">0deg</span>
+                </div>
+                <input type="range" id="disp-twist" min="-180" max="180" value="0" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="disp-turbulence" class="block text-[10px] text-neutral-500">Micro turbolenza</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-disp-turbulence">0%</span>
+                </div>
+                <input type="range" id="disp-turbulence" min="0" max="100" value="0" class="w-full">
+              </div>
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-neutral-800 flex flex-col gap-2">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="disp-map-enable" class="w-3 h-3 accent-neutral-200 rounded cursor-pointer">
+                <span class="text-[10px] text-neutral-400">Usa displacement map custom</span>
+              </label>
+              <label class="flex items-center justify-center min-h-9 transition bg-neutral-800 border border-neutral-700 border-dashed rounded cursor-pointer hover:border-neutral-500">
+                <span class="text-[10px] text-neutral-300 flex items-center gap-2 px-2"><i data-lucide="image-plus" class="w-3.5 h-3.5 shrink-0"></i> Carica displacement map</span>
+                <input type="file" id="upload-disp-map" accept="image/*" class="hidden" aria-label="Carica displacement map" />
+              </label>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="disp-map-blend" class="block text-[10px] text-neutral-500">Blend mappa custom</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-disp-map-blend">100%</span>
+                </div>
+                <input type="range" id="disp-map-blend" min="0" max="100" value="100" class="w-full">
+              </div>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="disp-map-invert" class="w-3 h-3 accent-neutral-200 rounded cursor-pointer">
+                <span class="text-[10px] text-neutral-500">Inverti mappa custom</span>
+              </label>
+              <p id="disp-map-status" class="text-[10px] text-neutral-600">Nessuna mappa caricata.</p>
+            </div>
+          </div>
+
+          <hr class="border-neutral-800">
+
+          <div>
+            <span class="text-xs font-medium text-neutral-400 block mb-2">Finitura immagine</span>
+            <div class="flex flex-col gap-3">
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="brightness" class="block text-[10px] text-neutral-500">Luminosita</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-brightness">100%</span>
+                </div>
+                <input type="range" id="brightness" min="40" max="200" value="100" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="contrast" class="block text-[10px] text-neutral-500">Contrasto</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-contrast">100%</span>
+                </div>
+                <input type="range" id="contrast" min="40" max="220" value="100" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="saturation" class="block text-[10px] text-neutral-500">Saturazione</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-saturation">100%</span>
+                </div>
+                <input type="range" id="saturation" min="0" max="200" value="100" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="hueShift" class="block text-[10px] text-neutral-500">Hue shift</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-hueShift">0deg</span>
+                </div>
+                <input type="range" id="hueShift" min="-180" max="180" value="0" class="w-full">
+              </div>
+              <div>
+                <div class="flex justify-between items-end mb-1">
+                  <label for="grain" class="block text-[10px] text-neutral-500">Grana / Noise</label>
+                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-grain">0%</span>
+                </div>
+                <input type="range" id="grain" min="0" max="40" value="0" class="w-full">
+              </div>
+            </div>
+          </div>
+
           <div id="effect-extras-wrap" class="hidden pt-3 mt-2 border-t border-neutral-800">
             <span class="text-xs font-medium text-neutral-400 flex items-center gap-2 mb-2">
               <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Parametri specifici
@@ -229,6 +338,15 @@
             <button type="button" id="btn-cap-frame" class="bg-white text-black hover:bg-neutral-200 text-[11px] font-medium px-3 py-1.5 rounded transition inline-flex items-center gap-1.5">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
               Cattura
+            </button>
+            <div class="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded px-2 py-1">
+              <label for="record-fps" class="text-[10px] text-neutral-500">FPS</label>
+              <input type="range" id="record-fps" min="3" max="30" value="12" class="w-16">
+              <span id="val-record-fps" class="text-[10px] font-mono text-neutral-200 tabular-nums w-6 text-right">12</span>
+            </div>
+            <button type="button" id="btn-record" class="bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-neutral-200 text-[11px] px-3 py-1.5 rounded transition inline-flex items-center gap-1.5" aria-pressed="false">
+              <i data-lucide="circle" class="w-3.5 h-3.5"></i>
+              Registra
             </button>
             <button type="button" id="btn-play" class="p-2 rounded-full bg-white text-black hover:bg-neutral-200 transition flex items-center justify-center" aria-label="Riproduci sequenza" aria-pressed="false">
               <i data-lucide="play" class="w-4 h-4 fill-current"></i>
