@@ -32,6 +32,13 @@ const EFFECTS_CATEGORIES = {
   const EFFECTS = {};
   Object.values(EFFECTS_CATEGORIES).forEach(cat => Object.assign(EFFECTS, cat.items));
 
+  function getCategoryKeyByEffect(effectKey) {
+    for (const [categoryKey, category] of Object.entries(EFFECTS_CATEGORIES)) {
+      if (category.items[effectKey]) return categoryKey;
+    }
+    return null;
+  }
+
   /** Parametri extra per effetto (id univoci, usati solo quando l’effetto è attivo). */
   const EFFECT_EXTRA_DEFS = {
     glitch: [
@@ -116,6 +123,7 @@ const EFFECTS_CATEGORIES = {
     imageLoaded: false,
     activeTab: 'preview',
     selectedEffect: 'disp_glass',
+    openEffectCategory: getCategoryKeyByEffect('disp_glass'),
     params: { intensity: 40, freq: 10, block: 30, speed: 5, centerX: 50, centerY: 50, rgbSplit: 0, radius: 100, feather: 30 },
     globalModifiers: { squareSpin: false },
     oscillators: {
@@ -563,22 +571,30 @@ const EFFECTS_CATEGORIES = {
     const searchEl = document.getElementById('effects-search');
     const q = normalizeFilter(searchEl ? searchEl.value : '');
     const total = Object.keys(EFFECTS).length;
+    const selectedCategory = getCategoryKeyByEffect(state.selectedEffect);
+
+    if (!q && selectedCategory && state.openEffectCategory !== selectedCategory) {
+      state.openEffectCategory = selectedCategory;
+    }
 
     document.getElementById('effects-title').innerHTML = `<i data-lucide="layers" class="w-3.5 h-3.5 shrink-0"></i> Catalogo effetti <span class="text-neutral-600 font-normal">(${total})</span>`;
 
     let effHTML = '';
     let catIndex = 0;
-    for (const [, cat] of Object.entries(EFFECTS_CATEGORIES)) {
+    for (const [catKey, cat] of Object.entries(EFFECTS_CATEGORIES)) {
       const entries = Object.entries(cat.items).filter(([, data]) => {
         if (!q) return true;
         return normalizeFilter(data.name).includes(q);
       });
       if (entries.length === 0) continue;
 
-      const open = q ? ' open' : catIndex === 0 ? ' open' : '';
+      let shouldOpen = false;
+      if (q) shouldOpen = true;
+      else if (state.openEffectCategory) shouldOpen = state.openEffectCategory === catKey;
+      else shouldOpen = catIndex === 0;
       catIndex++;
 
-      effHTML += `<details class="effect-cat"${open}><summary><span>${cat.label}</span><i data-lucide="chevron-right" class="chevron" aria-hidden="true"></i></summary><div class="effect-cat-inner"><div class="grid grid-cols-2 gap-1.5">`;
+      effHTML += `<details class="effect-cat" data-category="${catKey}"${shouldOpen ? ' open' : ''}><summary><span>${cat.label}</span><i data-lucide="chevron-right" class="chevron" aria-hidden="true"></i></summary><div class="effect-cat-inner"><div class="grid grid-cols-2 gap-1.5">`;
       for (const [key, data] of entries) {
         const activeCls = state.selectedEffect === key
           ? 'bg-neutral-800 border-neutral-500 text-white font-medium'
@@ -595,11 +611,22 @@ const EFFECTS_CATEGORIES = {
     effContainer.innerHTML = effHTML;
     lucide.createIcons();
 
+    effContainer.querySelectorAll('.effect-cat').forEach(details => {
+      details.addEventListener('toggle', () => {
+        if (!details.open || q) return;
+        state.openEffectCategory = details.dataset.category || null;
+        effContainer.querySelectorAll('.effect-cat').forEach(other => {
+          if (other !== details) other.open = false;
+        });
+      });
+    });
+
     effContainer.querySelectorAll('.effect-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         const el = e.target.closest('.effect-btn');
         if (!el || !el.dataset.effect) return;
         state.selectedEffect = el.dataset.effect;
+        state.openEffectCategory = getCategoryKeyByEffect(state.selectedEffect);
         renderEffectsList();
         updateCodeView();
         if (!state.liveMode) renderFrame(state.time);
