@@ -241,6 +241,16 @@ input[type="range"]::-moz-range-thumb {
   animation: none;
 }
 
+#btn-record.is-recording {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+#btn-record.is-recording:hover {
+  background: #b91c1c;
+}
+
 /* Ricerca effetti — select Gravity-like */
 .effects-search {
   width: 100%;
