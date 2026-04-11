@@ -13,19 +13,17 @@
   <a href="#main-canvas" class="skip-link">Vai all’anteprima</a>
 
   <div class="flex flex-1 min-h-0 flex-col md:flex-row">
+    
     <aside class="w-full md:w-80 shrink-0 bg-neutral-900 p-6 flex flex-col overflow-y-auto border-b md:border-b-0 md:border-r border-neutral-800 z-10 custom-scrollbar" aria-label="Pannello effetti e parametri">
+      
       <div class="pb-6 border-b border-neutral-800 mb-6">
         <h1 class="text-lg font-medium text-white tracking-tight">Distortion Studio</h1>
-        <p class="text-[10px] text-neutral-500 mt-1">Effetti canvas · sequenza · ZIP</p>
+        <p class="text-[10px] text-neutral-500 mt-1">Effetti canvas · sequenza · export</p>
         <div class="flex gap-2 w-full mt-4">
           <label class="flex-1 flex items-center justify-center min-h-10 transition bg-neutral-800 border border-neutral-700 border-dashed rounded cursor-pointer hover:border-neutral-500">
             <span class="text-xs text-neutral-400 flex items-center gap-2 px-2"><i data-lucide="image" class="w-3.5 h-3.5 shrink-0"></i> Carica media</span>
             <input type="file" id="upload-image" accept="image/*,video/*" class="hidden" aria-label="Carica media" />
           </label>
-          <button type="button" id="btn-export-zip" class="shrink-0 bg-white text-black hover:bg-neutral-200 px-3 rounded text-xs font-medium transition flex items-center justify-center gap-1.5" title="Esporta sequenza come ZIP">
-            <i data-lucide="download" class="w-3.5 h-3.5" aria-hidden="true"></i>
-            <span class="hidden sm:inline">ZIP</span>
-          </button>
         </div>
       </div>
 
@@ -43,17 +41,6 @@
         <p class="text-[10px] text-neutral-500 leading-relaxed -mt-2">
           Sovrappone la rotazione tipo “lavatrice” sull’effetto selezionato.
         </p>
-      </div>
-
-      <div class="flex flex-col gap-3 mb-6 pb-6 border-b border-neutral-800">
-        <h2 id="effects-title" class="text-xs font-medium text-neutral-400 flex items-center gap-2">
-          <i data-lucide="layers" class="w-3.5 h-3.5"></i> Catalogo effetti
-        </h2>
-        <div class="search-wrap">
-          <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
-          <input type="search" id="effects-search" class="effects-search" placeholder="Cerca effetto…" autocomplete="off" aria-label="Filtra effetti per nome" />
-        </div>
-        <div id="effects-container" class="space-y-1 min-h-0"></div>
       </div>
 
       <div class="flex flex-col gap-4 flex-1 pb-4">
@@ -163,14 +150,6 @@
             </div>
           </div>
 
-          <div>
-            <div class="flex justify-between items-end mb-1">
-              <label for="rgbSplit" class="block text-[10px] text-neutral-500">Glitch RGB</label>
-              <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-rgbSplit">0px</span>
-            </div>
-            <input type="range" id="rgbSplit" min="0" max="50" value="0" class="w-full">
-          </div>
-
           <div id="displacement-wrap" class="hidden pt-3 mt-2 border-t border-neutral-800">
             <span class="text-xs font-medium text-neutral-400 flex items-center gap-2 mb-2">
               <i data-lucide="mountain" class="w-3.5 h-3.5"></i> Controlli displacement
@@ -237,49 +216,6 @@
             </div>
           </div>
 
-          <hr class="border-neutral-800">
-
-          <div>
-            <span class="text-xs font-medium text-neutral-400 block mb-2">Finitura immagine</span>
-            <div class="flex flex-col gap-3">
-              <div>
-                <div class="flex justify-between items-end mb-1">
-                  <label for="brightness" class="block text-[10px] text-neutral-500">Luminosita</label>
-                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-brightness">100%</span>
-                </div>
-                <input type="range" id="brightness" min="40" max="200" value="100" class="w-full">
-              </div>
-              <div>
-                <div class="flex justify-between items-end mb-1">
-                  <label for="contrast" class="block text-[10px] text-neutral-500">Contrasto</label>
-                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-contrast">100%</span>
-                </div>
-                <input type="range" id="contrast" min="40" max="220" value="100" class="w-full">
-              </div>
-              <div>
-                <div class="flex justify-between items-end mb-1">
-                  <label for="saturation" class="block text-[10px] text-neutral-500">Saturazione</label>
-                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-saturation">100%</span>
-                </div>
-                <input type="range" id="saturation" min="0" max="200" value="100" class="w-full">
-              </div>
-              <div>
-                <div class="flex justify-between items-end mb-1">
-                  <label for="hueShift" class="block text-[10px] text-neutral-500">Hue shift</label>
-                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-hueShift">0deg</span>
-                </div>
-                <input type="range" id="hueShift" min="-180" max="180" value="0" class="w-full">
-              </div>
-              <div>
-                <div class="flex justify-between items-end mb-1">
-                  <label for="grain" class="block text-[10px] text-neutral-500">Grana / Noise</label>
-                  <span class="text-[10px] font-mono text-neutral-200 tabular-nums" id="val-grain">0%</span>
-                </div>
-                <input type="range" id="grain" min="0" max="40" value="0" class="w-full">
-              </div>
-            </div>
-          </div>
-
           <div id="effect-extras-wrap" class="hidden pt-3 mt-2 border-t border-neutral-800">
             <span class="text-xs font-medium text-neutral-400 flex items-center gap-2 mb-2">
               <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Parametri specifici
@@ -292,6 +228,7 @@
     </aside>
 
     <div class="flex flex-1 flex-col min-w-0 min-h-0 bg-neutral-950" id="main-workspace">
+      
       <div class="flex items-center gap-2 px-4 py-2 border-b border-neutral-800 shrink-0 bg-neutral-950" role="tablist" aria-label="Vista principale">
         <button type="button" id="tab-preview" role="tab" aria-selected="true" class="tab-segment flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded">
           <i data-lucide="maximize" class="w-3.5 h-3.5 opacity-80"></i>
@@ -313,7 +250,7 @@
       <div id="drop-zone" role="tabpanel" aria-labelledby="tab-preview" class="canvas-stage flex-1 relative flex items-center justify-center overflow-hidden p-4 md:p-6 min-h-0">
         <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-[1] p-12 text-center text-neutral-600">
           <p class="text-2xl font-light mb-2">Anteprima</p>
-          <p class="text-sm">Trascina un’immagine o usa <span class="text-neutral-400">Carica immagine</span> nel pannello.</p>
+          <p class="text-sm">Trascina un’immagine o usa <span class="text-neutral-400">Carica media</span> nel pannello di sinistra.</p>
         </div>
 
         <canvas id="main-canvas" width="0" height="0" class="max-w-full max-h-full object-contain transition-opacity duration-300 opacity-0 relative z-[2] ring-1 ring-neutral-800" aria-label="Anteprima distorsione"></canvas>
@@ -351,6 +288,10 @@
             <button type="button" id="btn-play" class="p-2 rounded-full bg-white text-black hover:bg-neutral-200 transition flex items-center justify-center" aria-label="Riproduci sequenza" aria-pressed="false">
               <i data-lucide="play" class="w-4 h-4 fill-current"></i>
             </button>
+            <button type="button" id="btn-export-zip" class="bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-neutral-200 text-[11px] font-medium px-3 py-1.5 rounded transition inline-flex items-center gap-1.5" title="Scarica tutti i frame catturati come archivio ZIP">
+              <i data-lucide="archive" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <span>Scarica file</span>
+            </button>
           </div>
         </div>
         <div id="timeline-strip" class="flex-1 flex items-center gap-2 p-3 overflow-x-auto custom-scrollbar min-h-[4.5rem]" aria-label="Anteprime frame">
@@ -358,6 +299,20 @@
         </div>
       </footer>
     </div>
+
+    <aside class="w-full md:w-72 shrink-0 bg-neutral-900 flex flex-col border-t md:border-t-0 md:border-l border-neutral-800 z-10" aria-label="Catalogo effetti">
+      <div class="p-5 pb-4 border-b border-neutral-800 shrink-0">
+        <h2 id="effects-title" class="text-xs font-medium text-neutral-400 flex items-center gap-2 mb-3">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i> Catalogo effetti
+        </h2>
+        <div class="search-wrap">
+          <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
+          <input type="search" id="effects-search" class="effects-search" placeholder="Cerca effetto…" autocomplete="off" aria-label="Filtra effetti per nome" />
+        </div>
+      </div>
+      <div id="effects-container" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 min-h-0"></div>
+    </aside>
+
   </div>
 
   <script src="script.js"></script>
